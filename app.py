@@ -75,8 +75,9 @@ def name_to_color(name: str) -> str:
 def append_rows(ws, rows: list[list[str]]):
     ws.append_rows(rows, value_input_option="USER_ENTERED")
 
-@st.cache_data(ttl=30)
-def load_df(ws) -> pd.DataFrame:
+@st.cache_data(ttl=30, show_spinner=False)
+def load_df() -> pd.DataFrame:
+    ws = get_worksheet()
     records = ws.get_all_records()
     df = pd.DataFrame(records)
     if df.empty:
@@ -213,7 +214,7 @@ with user_tab:
 
 with admin_tab:
     st.subheader("データ一覧（最新）")
-    df = load_df(ws)
+    df = load_df()
     st.dataframe(df, use_container_width=True)
 
     st.divider()
@@ -237,3 +238,4 @@ with admin_tab:
                         )
                 except Exception as ex:
                     st.error(f"{d} の生成に失敗: {ex}")
+
