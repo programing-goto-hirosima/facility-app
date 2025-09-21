@@ -76,18 +76,19 @@ def append_rows(ws, rows: list[list[str]]):
     ws.append_rows(rows, value_input_option="USER_ENTERED")
 
 @st.cache_data(ttl=30)
-def load_df(ws) -> pd.DataFrame:
+def load_df() -> pd.DataFrame:
+    ws = get_worksheet()  # ← ここで取得
     records = ws.get_all_records()
     df = pd.DataFrame(records)
     if df.empty:
         df = pd.DataFrame(columns=["timestamp", "user_name", "date", "place", "start", "end", "priority"])
-    # 型調整
     for c in ["date", "start", "end"]:
         if c in df.columns:
             df[c] = df[c].astype(str)
     if "priority" in df.columns:
         df["priority"] = pd.to_numeric(df["priority"], errors="coerce").astype("Int64")
     return df
+
 
 def make_excel_by_date(df: pd.DataFrame, date_str: str) -> str:
     """指定日のデータから、場所ごとにシートを作る Excel を生成し、ファイルパスを返す。"""
@@ -231,7 +232,7 @@ with user_tab:
 
 with admin_tab:
     st.subheader("データ一覧（最新）")
-    df = load_df(ws)
+    df = load_df()
     st.dataframe(df, use_container_width=True)
 
     st.divider()
