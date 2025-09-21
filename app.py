@@ -75,9 +75,8 @@ def name_to_color(name: str) -> str:
 def append_rows(ws, rows: list[list[str]]):
     ws.append_rows(rows, value_input_option="USER_ENTERED")
 
-@st.cache_data(ttl=30, show_spinner=False)
-def load_df() -> pd.DataFrame:
-    ws = get_worksheet()
+@st.cache_data(ttl=30)
+def load_df(ws) -> pd.DataFrame:
     records = ws.get_all_records()
     df = pd.DataFrame(records)
     if df.empty:
@@ -172,6 +171,8 @@ with user_tab:
 
     name = st.text_input("お名前（必須）")
 
+
+
     def hope_block(title: str):
         st.subheader(title)
         c1, c2, c3, c4 = st.columns([1.2, 1.2, 1, 1])
@@ -191,8 +192,24 @@ with user_tab:
 
     if st.button("送信する", type="primary"):
         errors = []
-        if not name.strip():
+
+        name_input = name.strip()
+
+        if not name_input:
             errors.append("お名前は必須です。")
+        else:
+            #名前の重複チェック
+            #  ※ 正規化して比較（前後/連続スペース、全角→半角スペース、大小文字差を吸収）
+            def normalize_name(s:str) -> str:
+                s = str(s).strip().replace("　"," ")
+                s = " ".join(s.split())
+                return s.lower()
+
+            existing_names = [r.get("user_name","") for r in ws.get_all_records()]
+            existing_norm = {normalize_name(n) for n in existing_names}
+            if normalize_name(name_input) in existing_norm:
+                errors.append(f"この名前「{name_input}」は既に登録されています。別の名前を入力してください。")
+
         for idx, (s, e) in enumerate([(s1, e1), (s2, e2), (s3, e3)], start=1):
             if not validate_range(s, e):
                 errors.append(f"第{idx}希望の時間範囲が不正です（開始 < 終了）。")
@@ -201,9 +218,9 @@ with user_tab:
         else:
             ts = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
             rows = [
-                [ts, name, d1, p1, s1, e1, 1],
-                [ts, name, d2, p2, s2, e2, 2],
-                [ts, name, d3, p3, s3, e3, 3],
+                [ts, name_input, d1, p1, s1, e1, 1],
+                [ts, name_input, d2, p2, s2, e2, 2],
+                [ts, name_input, d3, p3, s3, e3, 3],
             ]
             try:
                 append_rows(ws, rows)
@@ -214,7 +231,7 @@ with user_tab:
 
 with admin_tab:
     st.subheader("データ一覧（最新）")
-    df = load_df()
+    df = load_df(ws)
     st.dataframe(df, use_container_width=True)
 
     st.divider()
@@ -238,4 +255,3 @@ with admin_tab:
                         )
                 except Exception as ex:
                     st.error(f"{d} の生成に失敗: {ex}")
-
